@@ -1,0 +1,17 @@
+[package]
+name = "esp32_74hc595"
+version = "0.1.0"
+authors = ["Here I go deploying again <ci@nebula.org>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+hal = { package = "esp32-hal", version = "0.11.0" }
+esp-backtrace = { version = "0.7.0", features = [
+    "esp32",
+    "panic-handler",
+    "exception-handler",
+    "print-uart",
+] }
+esp-println = { version = "0.5.0", features = ["esp32"] }
+drive_74hc595 = "0.1.0"

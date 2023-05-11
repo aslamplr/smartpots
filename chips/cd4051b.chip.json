@@ -1,0 +1,22 @@
+{
+  "name": "CD4051B",
+  "author": "Chris Schmidt",
+  "pins": [
+    "CIO4",
+    "CIO6",
+    "COMIO",
+    "CIO7",
+    "CIO5",
+    "INH",
+    "VEE",
+    "VSS",
+    "C",
+    "B",
+    "A",
+    "CIO3",
+    "CIO0",
+    "CIO1",
+    "CIO2",
+    "VDD"
+  ]
+}

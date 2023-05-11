@@ -1,0 +1,8 @@
+[wokwi]
+version = 1
+firmware = "target/xtensa-esp32-none-elf/release/esp32_74hc595"
+elf = "target/xtensa-esp32-none-elf/release/esp32_74hc595"
+
+[[chip]]
+name = "cd4051b"
+binary = "chips/cd4051b.chip.wasm"
