@@ -4,8 +4,6 @@
 #![no_std]
 #![no_main]
 
-use core::result::Result;
-
 use drive_74hc595::ShiftRegister as ShiftRegister74hc595;
 use esp_backtrace as _;
 use esp_println::println;
@@ -47,10 +45,12 @@ fn main() -> ! {
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     // water pump (23)
     let mut pin_23_pump = io.pins.gpio23.into_push_pull_output();
-    // 74hc595 (18, 19, 21)
-    let pin_18_latch = io.pins.gpio18.into_push_pull_output();
-    let pin_19_clock = io.pins.gpio19.into_push_pull_output();
-    let pin_21_data = io.pins.gpio21.into_push_pull_output();
+    // 74hc595 (1, 3, 18, 19, 21)
+    let pin_17_oe = io.pins.gpio17.into_push_pull_output();
+    let pin_21_ser = io.pins.gpio21.into_push_pull_output();
+    let pin_16_srclr = io.pins.gpio16.into_push_pull_output();
+    let pin_19_srclk = io.pins.gpio19.into_push_pull_output();
+    let pin_18_rclk = io.pins.gpio18.into_push_pull_output();
     // cd4051b (33, 25, 26, 14)
     let pin_33_a = io.pins.gpio33.into_push_pull_output();
     let pin_25_b = io.pins.gpio25.into_push_pull_output();
@@ -66,7 +66,13 @@ fn main() -> ! {
 
     let mut multiplexer = Multiplexer::new(&mut adc2, pin_14_adc, pin_33_a, pin_25_b, pin_26_c);
 
-    let mut shift_register = ShiftRegister::new(pin_21_data, pin_19_clock, pin_18_latch);
+    let mut shift_register = ShiftRegister::new(
+        pin_17_oe,
+        pin_21_ser,
+        pin_16_srclr,
+        pin_19_srclk,
+        pin_18_rclk,
+    );
 
     // Initialize the Delay peripheral, and use it to toggle the LED state in a
     // loop.
@@ -164,42 +170,33 @@ where
     }
 }
 
-struct ShiftRegister<DP, CP, LP>
+struct ShiftRegister<OE, SER, SRCLR, SRCLK, RCLK>
 where
-    DP: OutputPin,
-    CP: OutputPin,
-    LP: OutputPin,
+    OE: OutputPin,
+    SER: OutputPin,
+    SRCLR: OutputPin,
+    SRCLK: OutputPin,
+    RCLK: OutputPin,
 {
-    drive: ShiftRegister74hc595<DummyPin, DP, DummyPin, CP, LP>,
+    drive: ShiftRegister74hc595<OE, SER, SRCLR, SRCLK, RCLK>,
     curr_val: u8,
 }
 
-impl<DP, CP, LP> ShiftRegister<DP, CP, LP>
+impl<OE, SER, SRCLR, SRCLK, RCLK> ShiftRegister<OE, SER, SRCLR, SRCLK, RCLK>
 where
-    DP: OutputPin,
-    CP: OutputPin,
-    LP: OutputPin,
+    OE: OutputPin,
+    SER: OutputPin,
+    SRCLR: OutputPin,
+    SRCLK: OutputPin,
+    RCLK: OutputPin,
 {
-    pub fn new(data_pin: DP, clock_pin: CP, latch_pin: LP) -> Self {
-        let drive = ShiftRegister74hc595::new(DummyPin, data_pin, DummyPin, clock_pin, latch_pin);
+    pub fn new(oe: OE, ser: SER, srclr: SRCLR, srclk: SRCLK, rclk: RCLK) -> Self {
+        let drive = ShiftRegister74hc595::new(oe, ser, srclr, srclk, rclk);
         Self { drive, curr_val: 0 }
     }
 
     pub fn begin(&mut self) {
         self.drive.begin();
-        self.drive.output_clear();
-    }
-
-    #[allow(dead_code)]
-    pub fn all_high(&mut self) {
-        self.drive.load(255);
-        self.curr_val = 255;
-    }
-
-    #[allow(dead_code)]
-    pub fn all_low(&mut self) {
-        self.drive.load(0);
-        self.curr_val = 0;
     }
 
     pub fn set_high(&mut self, addr: u8) {
@@ -214,19 +211,5 @@ where
         let addr = u8::pow(2, addr as u32);
         self.curr_val &= !addr;
         self.drive.load(self.curr_val);
-    }
-}
-
-struct DummyPin;
-
-impl OutputPin for DummyPin {
-    type Error = ();
-
-    fn set_low(&mut self) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn set_high(&mut self) -> Result<(), Self::Error> {
-        Ok(())
     }
 }
