@@ -39,7 +39,7 @@ fn main() -> ! {
     rtc.rwdt.disable();
     wdt0.disable();
     wdt1.disable();
-    println!("Hello ESP!");
+    println!("Hello ESP! v0.0.101");
 
     // Setup the GPIOs.
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
@@ -179,7 +179,7 @@ where
     RCLK: OutputPin,
 {
     drive: ShiftRegister74hc595<OE, SER, SRCLR, SRCLK, RCLK>,
-    curr_val: u8,
+    curr_val: Option<u8>,
 }
 
 impl<OE, SER, SRCLR, SRCLK, RCLK> ShiftRegister<OE, SER, SRCLR, SRCLK, RCLK>
@@ -192,7 +192,10 @@ where
 {
     pub fn new(oe: OE, ser: SER, srclr: SRCLR, srclk: SRCLK, rclk: RCLK) -> Self {
         let drive = ShiftRegister74hc595::new(oe, ser, srclr, srclk, rclk);
-        Self { drive, curr_val: 0 }
+        Self {
+            drive,
+            curr_val: None,
+        }
     }
 
     pub fn begin(&mut self) {
@@ -202,14 +205,36 @@ where
     pub fn set_high(&mut self, addr: u8) {
         assert!(addr < 8);
         let addr = u8::pow(2, addr as u32);
-        self.curr_val |= addr;
-        self.drive.load(self.curr_val);
+        if let Some(val) = self.curr_val {
+            let new_val = val | addr;
+            if new_val != val {
+                self.curr_val.replace(new_val);
+                self.load(new_val);
+            }
+        } else {
+            self.curr_val.replace(addr);
+            self.load(addr);
+        }
     }
 
     pub fn set_low(&mut self, addr: u8) {
         assert!(addr < 8);
         let addr = u8::pow(2, addr as u32);
-        self.curr_val &= !addr;
-        self.drive.load(self.curr_val);
+        if let Some(val) = self.curr_val {
+            let new_val = val & !addr;
+            if new_val != val {
+                self.curr_val.replace(new_val);
+                self.load(new_val);
+            }
+        } else {
+            self.curr_val.replace(addr);
+            self.load(addr);
+        }
+    }
+
+    fn load(&mut self, data: u8) {
+        self.drive.disable_output();
+        self.drive.load(data);
+        self.drive.enable_output();
     }
 }
