@@ -179,7 +179,7 @@ where
     RCLK: OutputPin,
 {
     drive: ShiftRegister74hc595<OE, SER, SRCLR, SRCLK, RCLK>,
-    curr_val: Option<u8>,
+    curr_val: u8,
 }
 
 impl<OE, SER, SRCLR, SRCLK, RCLK> ShiftRegister<OE, SER, SRCLR, SRCLK, RCLK>
@@ -192,47 +192,34 @@ where
 {
     pub fn new(oe: OE, ser: SER, srclr: SRCLR, srclk: SRCLK, rclk: RCLK) -> Self {
         let drive = ShiftRegister74hc595::new(oe, ser, srclr, srclk, rclk);
-        Self {
-            drive,
-            curr_val: None,
-        }
+        Self { drive, curr_val: 0 }
     }
 
     pub fn begin(&mut self) {
         self.drive.begin();
+        self.load(0);
     }
 
     pub fn set_high(&mut self, addr: u8) {
         assert!(addr < 8);
         let addr = u8::pow(2, addr as u32);
-        if let Some(val) = self.curr_val {
-            let new_val = val | addr;
-            if new_val != val {
-                self.curr_val.replace(new_val);
-                self.load(new_val);
-            }
-        } else {
-            self.curr_val.replace(addr);
-            self.load(addr);
+        let new_val = self.curr_val | addr;
+        if new_val != self.curr_val {
+            self.load(new_val);
         }
     }
 
     pub fn set_low(&mut self, addr: u8) {
         assert!(addr < 8);
         let addr = u8::pow(2, addr as u32);
-        if let Some(val) = self.curr_val {
-            let new_val = val & !addr;
-            if new_val != val {
-                self.curr_val.replace(new_val);
-                self.load(new_val);
-            }
-        } else {
-            self.curr_val.replace(addr);
-            self.load(addr);
+        let new_val = self.curr_val & !addr;
+        if new_val != self.curr_val {
+            self.load(new_val);
         }
     }
 
     fn load(&mut self, data: u8) {
+        self.curr_val = data;
         self.drive.disable_output();
         self.drive.load(data);
         self.drive.enable_output();
